@@ -2,7 +2,7 @@
 #include <string>
 #include <vector>
 
-void conversion_to_bin(const std::string& numStr) {
+void convertion_to_bin(const std::string& numStr) {
 
     if (numStr.size() == 1 && (numStr[0] == '1' || numStr[0] == '0')) {
         std::cout << numStr[0];
@@ -26,13 +26,15 @@ void conversion_to_bin(const std::string& numStr) {
         result = "0";
     }
 
-    divideByTwoInColumn(result);
+    convertion_to_bin(result);
     std::cout << remainder;
 }
 
 int main() {
 
-    divideByTwoInColumn("10");
+    convertion_to_bin("10");
 
     return 0;
 }
+
+
