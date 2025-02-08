@@ -68,12 +68,12 @@ private:
         for (size_t i = 0; i < maxSize; ++i) {
             if (i >= a.size()) {
                 result.push_back(b[i] + carry);
-                carry = b[i] + carry;
+                carry = (b[i] + carry) == 0;
                 continue;
             }
             if (i >= b.size()) {
                 result.push_back(a[i] + carry);
-                carry = a[i] + carry;
+                carry = (a[i] + carry) == 0;
                 continue;
             }
 
@@ -220,7 +220,7 @@ int main() {
     std::cout << std::endl;
 
     FixedPoint result = num1 + num2;
-    std::cout << "RESULT" << std::endl;
+    std::cout << "ADDITION_RESULT" << std::endl;
     result.print_bin();
     std::cout << std::endl;
 
