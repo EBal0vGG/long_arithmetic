@@ -13,31 +13,88 @@ public:
         integer = binaryResult.first;
         fractional = binaryResult.second;
 
+        std::cout << "Integer bits: ";
         for (uint32_t value : integer) {
-            // Iterate over each bit (from most significant to least significant)
-            for (int i = 31; i >= 0; --i) {
-                // Use bitwise AND to check if the bit is set
-                std::cout << ((value >> i) & 1);
-            }
+            printBits(value);
             std::cout << " ";
         }
-
         std::cout << std::endl;
 
-
+        std::cout << "Fractional bits: ";
         for (uint32_t value : fractional) {
-            // Iterate over each bit (from most significant to least significant)
-            for (int i = 31; i >= 0; --i) {
-                // Use bitwise AND to check if the bit is set
-                std::cout << ((value >> i) & 1);
-            }
+            printBits(value);
+            std::cout << " ";
         }
+        std::cout << std::endl;
+    }
+
+    // Overload the + operator
+    FixedPoint operator+(const FixedPoint &other) const {
+        FixedPoint result("0.0", std::max(fractional_bits, other.fractional_bits)); // Create a result object with the max fractional bits
+
+        // Add fractional parts
+        result.fractional = addVectors(fractional, other.fractional);
+
+
+        // надо проверить, не должен ли один бит перескочить на integer part
+
+
+        // Add integer parts
+        result.integer = addVectors(integer, other.integer);
+
+        // // Handle carry from fractional to integer part
+        // if (result.fractional.size() > fractional.size()) {
+        //     uint32_t carry = result.fractional.back();
+        //     result.fractional.pop_back();
+        //     result.integer = addVectors(result.integer, {carry});
+        // }
+
+        return result;
     }
 
 private:
     std::vector<uint32_t> integer;
     std::vector<uint32_t> fractional;
     int fractional_bits;
+
+    // Function to print bits of a uint32_t value
+    void printBits(uint32_t value) const {
+        for (int i = 31; i >= 0; --i) {
+            std::cout << ((value >> i) & 1);
+        }
+    }
+
+    // Function to add two vectors of uint32_t (handling carry)
+    std::vector<uint32_t> addVectors(const std::vector<uint32_t> &a, const std::vector<uint32_t> &b) const {
+        std::vector<uint32_t> result;
+        uint32_t carry = 0;
+        size_t maxSize = std::max(a.size(), b.size());
+
+        for (size_t i = 0; i < maxSize; ++i) {
+            result.push_back(0);
+
+            // ну и проверить эту хуйню по мелочи
+            // проверить, мб и int и frac частями по-разному
+
+            if (i >= a.size()) {
+                result.push_back(b[i]); // просто закинуть целый эл-т
+                continue;
+            }
+            if (i >= b.size()) {
+                result.push_back(a[i]);
+                continue;
+            }
+
+
+            for (size_t j = 0; j < 32; ++j) {
+                uint32_t addition = (carry == 1 ? 0xFFFFFFFF : 0);
+                result.back() = result.back() | ((a[i] | b[i] | addition) & (1 << j));
+                carry = ((a[i] & (1 << j)) && (b[i] & (1 << j)) ? 1 : 0);
+            }
+        }
+
+        return result;
+    }
 
     // Function to convert integer part to binary
     std::vector<uint32_t> int_part_to_bin(const std::string& numStr) {
@@ -108,14 +165,13 @@ private:
             // Multiply the fractional part by 2
             std::string multiplied = multiplyByTwo(fractionalPart);
 
-            if (bit_added == 0) binary.push_back(0);
+            if (bit_added == 0) binary.insert(binary.begin(), 0);
 
             if (multiplied.size() == frac_part_size) {
-                binary.back() = (binary.back() << 1) | 0;
+                binary[0] = (binary[0] << 1) | 0;
                 fractionalPart = multiplied;
-
             } else {
-                binary.back() = (binary.back() << 1) | 1;
+                binary[0] = (binary[0] << 1) | 1;
                 fractionalPart = multiplied.substr(1);
             }
 
@@ -123,6 +179,8 @@ private:
                 fractionalPart = "0"; // If no more fractional part remains
             }
         }
+
+        binary[0] <<= 32 - (frac_bits % 32);
 
         return binary;
     }
@@ -153,8 +211,12 @@ private:
 };
 
 int main() {
-    FixedPoint long_num{"1848294832849.184829483284921394", 128};
+    FixedPoint num1{"10.14", 35};
+    FixedPoint num2{"11.15", 64};
 
+    // проблема с int part (не выводит)
+    // проблема с frac part (все по нулям)
+    FixedPoint result = num1 + num2;
 
     return 0;
 }
