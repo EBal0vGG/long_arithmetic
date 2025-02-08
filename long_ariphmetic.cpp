@@ -12,8 +12,6 @@ public:
 
         integer = binaryResult.first;
         fractional = binaryResult.second;
-
-        print_bin();
     }
 
     void print_bin() const {
@@ -69,11 +67,13 @@ private:
 
         for (size_t i = 0; i < maxSize; ++i) {
             if (i >= a.size()) {
-                result.push_back(b[i]);
+                result.push_back(b[i] + carry);
+                carry = b[i] + carry;
                 continue;
             }
             if (i >= b.size()) {
-                result.push_back(a[i]);
+                result.push_back(a[i] + carry);
+                carry = a[i] + carry;
                 continue;
             }
 
@@ -210,17 +210,19 @@ private:
 
 int main() {
     FixedPoint num1{"4294967295.14", 35};
+    std::cout << "NUM_1" << std::endl;
+    num1.print_bin();
     std::cout << std::endl;
-    FixedPoint num2{"1.0", 32};
+
+    FixedPoint num2{"1.943849893749739832", 96};
+    std::cout << "NUM_2" << std::endl;
+    num2.print_bin();
     std::cout << std::endl;
 
     FixedPoint result = num1 + num2;
-    std::cout << std::endl;
-
+    std::cout << "RESULT" << std::endl;
     result.print_bin();
-
     std::cout << std::endl;
-
 
     return 0;
 }
