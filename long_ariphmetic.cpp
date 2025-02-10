@@ -35,11 +35,11 @@ public:
         FixedPoint result("0.0", std::max(fractional_bits, other.fractional_bits)); // Create a result object with the max fractional bits
 
         // Add fractional parts
-        auto add_res = addVectors(fractional, other.fractional);
+        auto add_res = add_frac(fractional, other.fractional);
         result.fractional = add_res.first;
 
         // Add integer parts
-        add_res = addVectors(integer, other.integer, add_res.second);
+        add_res = add_int(integer, other.integer, add_res.second);
         result.integer = add_res.first;
 
         if (add_res.second) {
@@ -60,8 +60,38 @@ private:
         }
     }
 
-    // Function to add two vectors of uint32_t (handling carry)
-    std::pair<std::vector<uint32_t>, bool> addVectors(const std::vector<uint32_t> &a, const std::vector<uint32_t> &b, uint32_t carry = 0) const {
+    // Function to add frac parts of uint32_t (handling carry)
+    std::pair<std::vector<uint32_t>, bool> add_frac(const std::vector<uint32_t> &a, const std::vector<uint32_t> &b, uint32_t carry = 0) const {
+        std::vector<uint32_t> result;
+        size_t maxSize = std::max(a.size(), b.size());
+
+        size_t a_i = 0, b_i = 0;
+        while (a_i < maxSize && b_i < maxSize) {
+            if (b_i < maxSize - a.size()) {
+                result.push_back(b[b_i++]);
+                continue;
+            }
+            if (a_i < maxSize - b.size()) {
+                result.push_back(a[a_i++]);
+                continue;
+            }
+
+            result.push_back(0);
+
+            for (size_t j = 0; j < 32; ++j) {
+                uint32_t addition = (carry == 1 ? 0xFFFFFFFF : 0);
+                result.back() = result.back() | ((a[a_i] ^ b[b_i] ^ addition) & (1 << j));
+                carry = ((a[a_i] & (1 << j)) && (b[b_i] & (1 << j)) ||
+                        ((a[a_i] ^ b[b_i]) & (1 << j)) && addition ? 1 : 0);
+            }
+            a_i++;
+            b_i++;
+        }
+        return std::make_pair(result, carry);
+    }
+
+    // Function to add int parts of uint32_t (handling carry)
+    std::pair<std::vector<uint32_t>, bool> add_int(const std::vector<uint32_t> &a, const std::vector<uint32_t> &b, uint32_t carry = 0) const {
         std::vector<uint32_t> result;
         size_t maxSize = std::max(a.size(), b.size());
 
