@@ -48,10 +48,28 @@ public:
         return result;
     }
 
+    // Overload the * operator
+    FixedPoint operator*(const FixedPoint &other) const {
+        FixedPoint result("0.0", std::max(fractional_bits, other.fractional_bits)); // Create a result object with the max fractional bits
+
+        // Multiply frac parts
+        /*
+
+
+
+        */
+
+        // Multiply int parts
+        result.integer = multiply_int(integer, other.integer);
+
+        return result;
+    }
+
 private:
     std::vector<uint32_t> integer;
     std::vector<uint32_t> fractional;
     int fractional_bits;
+    bool is_negative;
 
     // Function to print bits of a uint32_t value
     void printBits(uint32_t value) const {
@@ -117,6 +135,43 @@ private:
             }
         }
         return std::make_pair(result, carry);
+    }
+
+    std::vector<uint32_t> multiply_int(const std::vector<uint32_t> &a, const std::vector<uint32_t> &b) const {
+        std::vector<uint32_t> mid_mult((a.size() + b.size()) * 32 + 1);
+
+        for (size_t a_i = 0; a_i < a.size(); a_i++) {
+            for (size_t bit_a = 0; bit_a < 32; bit_a++) {
+                for (size_t b_i = 0; b_i < b.size(); b_i++) {
+                    for (size_t bit_b = 0; bit_b < 32; bit_b++) {
+                        /*
+                        бит в a : a_i * 32 + bit_a
+                        бит в b : b_i * 32 + bit_b
+
+                        итоговый бит : a_i * 32 + bit_a + b_i * 32 + bit_b
+
+                        брать из a : [a_i] >> bit_a
+                        брать из b : [b_i] >> bit_b
+
+                        класть в итог : [32 * (a_i + b_i) + bit_a + bit_b]
+                        */
+                        mid_mult[32 * (a_i + b_i) + bit_a + bit_b] +=
+                        (a[a_i] >> bit_a) & (b[b_i] >> bit_b) & 0x00000001;
+                    }
+                }
+            }
+        }
+        std::vector<uint32_t> multiply_result;
+        int bit_added = 0;
+        for (size_t i = 0; i < mid_mult.size() - 1; i++) {
+            if (bit_added == 0) multiply_result.push_back(0);
+            multiply_result.back() = multiply_result.back() | ((mid_mult[i] % 2) << bit_added);
+            mid_mult[i + 1] += mid_mult[i] / 2;
+            bit_added = (bit_added + 1) % 32;
+        }
+        if (multiply_result.back() == 0) multiply_result.pop_back();
+
+        return multiply_result;
     }
 
     // Function to convert integer part to binary
@@ -249,10 +304,27 @@ int main() {
     num2.print_bin();
     std::cout << std::endl;
 
-    FixedPoint result = num1 + num2;
+    FixedPoint add_result = num1 + num2;
     std::cout << "ADDITION_RESULT" << std::endl;
-    result.print_bin();
+    add_result.print_bin();
     std::cout << std::endl;
+
+    std::cout << std::endl << std::endl << std::endl;
+
+    FixedPoint num3{"27387283792929.0", 35};
+    std::cout << "NUM_3" << std::endl;
+    num3.print_bin();
+    std::cout << std::endl;
+
+    FixedPoint num4{"3727272727272.0", 96};
+    std::cout << "NUM_4" << std::endl;
+    num4.print_bin();
+    std::cout << std::endl;
+
+    FixedPoint mult_result = num3 * num4;
+        std::cout << "MULTIPLY_RESULT" << std::endl;
+        mult_result.print_bin();
+        std::cout << std::endl;
 
     return 0;
 }
