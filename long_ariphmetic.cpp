@@ -50,17 +50,65 @@ public:
 
     // Overload the * operator
     FixedPoint operator*(const FixedPoint &other) const {
-        FixedPoint result("0.0", std::max(fractional_bits, other.fractional_bits)); // Create a result object with the max fractional bits
+        FixedPoint result("0.0", 32); // Create a result object
 
-        // Multiply frac parts
-        /*
+        int this_sz = integer.size() + fractional.size();
+        int other_sz = other.integer.size() + other.fractional.size();
+        int mid_mult_sz = (this_sz + other_sz) * 32 + 1;
+        std::vector<uint32_t> mid_mult(mid_mult_sz);
 
+        for (int this_i = 0; this_i < this_sz; this_i++) {
+            for (int bit_this = 0; bit_this < 32; bit_this++) {
+                for (int other_i = 0; other_i < other_sz; other_i++) {
+                    for (int bit_other = 0; bit_other < 32; bit_other++) {
 
+                        if (this_i < fractional.size() && other_i < other.fractional.size()) {
+                            mid_mult[32 * (this_i + other_i) + bit_this + bit_other] +=
+                            (fractional[this_i] >> bit_this) & (other.fractional[other_i] >> bit_other) & 0x00000001;
+                        }
+                        if (this_i < fractional.size() && other_i >= other.fractional.size()) {
+                            mid_mult[32 * (this_i + other_i) + bit_this + bit_other] +=
+                            (fractional[this_i] >> bit_this) & (other.integer[other_i - other.fractional.size()] >> bit_other) & 0x00000001;
+                        }
+                        if (this_i >= fractional.size() && other_i < other.fractional.size()) {
+                            mid_mult[32 * (this_i + other_i) + bit_this + bit_other] +=
+                            (integer[this_i - fractional.size()] >> bit_this) & (other.fractional[other_i] >> bit_other) & 0x00000001;
+                        }
+                        if (this_i >= fractional.size() && other_i >= other.fractional.size()) {
+                            mid_mult[32 * (this_i + other_i) + bit_this + bit_other] +=
+                            (integer[this_i - fractional.size()] >> bit_this) & (other.integer[other_i - other.fractional.size()] >> bit_other) & 0x00000001;
+                        }
 
-        */
+                    }
+                }
+            }
+        }
 
-        // Multiply int parts
-        result.integer = multiply_int(integer, other.integer);
+        std::vector<uint32_t> mult_int_result;
+        std::vector<uint32_t> mult_frac_result;
+        int bit_added = 0;
+        for (size_t i = 0; i < mid_mult_sz - 1; i++) {
+
+            if (i < 32 * (fractional.size() + other.fractional.size())) {
+
+                if (bit_added == 0) mult_frac_result.push_back(0);
+                mult_frac_result.back() = mult_frac_result.back() | ((mid_mult[i] % 2) << bit_added);
+                mid_mult[i + 1] += mid_mult[i] / 2;
+                bit_added = (bit_added + 1) % 32;
+
+            } else {
+
+                if (bit_added == 0) mult_int_result.push_back(0);
+                mult_int_result.back() = mult_int_result.back() | ((mid_mult[i] % 2) << bit_added);
+                mid_mult[i + 1] += mid_mult[i] / 2;
+                bit_added = (bit_added + 1) % 32;
+
+            }
+
+        }
+
+        result.integer = mult_int_result;
+        result.fractional = mult_frac_result;
 
         return result;
     }
@@ -135,43 +183,6 @@ private:
             }
         }
         return std::make_pair(result, carry);
-    }
-
-    std::vector<uint32_t> multiply_int(const std::vector<uint32_t> &a, const std::vector<uint32_t> &b) const {
-        std::vector<uint32_t> mid_mult((a.size() + b.size()) * 32 + 1);
-
-        for (size_t a_i = 0; a_i < a.size(); a_i++) {
-            for (size_t bit_a = 0; bit_a < 32; bit_a++) {
-                for (size_t b_i = 0; b_i < b.size(); b_i++) {
-                    for (size_t bit_b = 0; bit_b < 32; bit_b++) {
-                        /*
-                        бит в a : a_i * 32 + bit_a
-                        бит в b : b_i * 32 + bit_b
-
-                        итоговый бит : a_i * 32 + bit_a + b_i * 32 + bit_b
-
-                        брать из a : [a_i] >> bit_a
-                        брать из b : [b_i] >> bit_b
-
-                        класть в итог : [32 * (a_i + b_i) + bit_a + bit_b]
-                        */
-                        mid_mult[32 * (a_i + b_i) + bit_a + bit_b] +=
-                        (a[a_i] >> bit_a) & (b[b_i] >> bit_b) & 0x00000001;
-                    }
-                }
-            }
-        }
-        std::vector<uint32_t> multiply_result;
-        int bit_added = 0;
-        for (size_t i = 0; i < mid_mult.size() - 1; i++) {
-            if (bit_added == 0) multiply_result.push_back(0);
-            multiply_result.back() = multiply_result.back() | ((mid_mult[i] % 2) << bit_added);
-            mid_mult[i + 1] += mid_mult[i] / 2;
-            bit_added = (bit_added + 1) % 32;
-        }
-        if (multiply_result.back() == 0) multiply_result.pop_back();
-
-        return multiply_result;
     }
 
     // Function to convert integer part to binary
@@ -293,38 +304,49 @@ private:
     }
 };
 
+// User-defined literal operator for FixedPoint
+FixedPoint operator""_long(long double number) {
+    printf("Create FixedPoint as <number>_long\n");
+    return FixedPoint(std::to_string(number), 32); // Replace this with actual logic if needed
+}
+
 int main() {
-    FixedPoint num1{"4294967295.14", 35};
-    std::cout << "NUM_1" << std::endl;
-    num1.print_bin();
-    std::cout << std::endl;
+    // FixedPoint fixed = 2.0_long;
+    // std::cout << "2.0_long" << std::endl;
+    // fixed.print_bin();
+    // std::cout << std::endl;
 
-    FixedPoint num2{"1.943849893749739832", 96};
-    std::cout << "NUM_2" << std::endl;
-    num2.print_bin();
-    std::cout << std::endl;
+    // FixedPoint num1{"4294967295.23", 48};
+    // std::cout << "NUM_1" << std::endl;
+    // num1.print_bin();
+    // std::cout << std::endl;
 
-    FixedPoint add_result = num1 + num2;
-    std::cout << "ADDITION_RESULT" << std::endl;
-    add_result.print_bin();
-    std::cout << std::endl;
+    // FixedPoint num2{"1.2", 65};
+    // std::cout << "NUM_2" << std::endl;
+    // num2.print_bin();
+    // std::cout << std::endl;
 
-    std::cout << std::endl << std::endl << std::endl;
+    // FixedPoint add_result = num1 + num2;
+    // std::cout << "ADDITION_RESULT" << std::endl;
+    // add_result.print_bin();
+    // std::cout << std::endl;
 
-    FixedPoint num3{"27387283792929.0", 35};
+    // std::cout << std::endl << std::endl << std::endl;
+
+    FixedPoint num3{"832398293833333333.9298328382", 64};
     std::cout << "NUM_3" << std::endl;
     num3.print_bin();
     std::cout << std::endl;
 
-    FixedPoint num4{"3727272727272.0", 96};
+    FixedPoint num4{"92929328382364.235273672632", 64};
     std::cout << "NUM_4" << std::endl;
     num4.print_bin();
     std::cout << std::endl;
 
     FixedPoint mult_result = num3 * num4;
-        std::cout << "MULTIPLY_RESULT" << std::endl;
-        mult_result.print_bin();
-        std::cout << std::endl;
+    std::cout << "MULTIPLY_RESULT" << std::endl;
+    mult_result.print_bin();
+    std::cout << std::endl;
 
     return 0;
 }
