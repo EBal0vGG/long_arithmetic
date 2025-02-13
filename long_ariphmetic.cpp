@@ -14,21 +14,11 @@ public:
         fractional = binaryResult.second;
     }
 
-    void print_bin() const {
-        std::cout << "Integer bits: ";
-        for (uint32_t value : integer) {
-            printBits(value);
-            std::cout << " ";
-        }
-        std::cout << std::endl;
+    FixedPoint(const FixedPoint& other) = default;
 
-        std::cout << "Fractional bits: ";
-        for (uint32_t value : fractional) {
-            printBits(value);
-            std::cout << " ";
-        }
-        std::cout << std::endl;
-    }
+    ~FixedPoint() = default;
+
+    FixedPoint& operator=(const FixedPoint& other) = default;
 
     // Overload the + operator
     FixedPoint operator+(const FixedPoint &other) const {
@@ -147,6 +137,101 @@ public:
         if (this_i == -1) return false;
         std::cout << "Fifth point" << std::endl;
         return true;
+    }
+
+    bool operator<(const FixedPoint &other) const {
+        if (integer.size() < other.integer.size()) return true;
+        if (integer.size() > other.integer.size()) return false;
+
+        std::cout << "First point " << std::endl;
+
+        for (int i = integer.size() - 1; i >= 0; i--) {
+            if (integer[i] < other.integer[i]) {
+                return true;
+            }
+        }
+        std::cout << "Second point" << std::endl;
+
+        int this_i = fractional.size() - 1, other_i = other.fractional.size() - 1;
+        for (; this_i >= 0 && other_i >= 0; this_i--, other_i--) {
+
+            if (fractional[this_i] < other.fractional[other_i]) {
+                return true;
+            }
+        }
+        std::cout << "Third point" << std::endl;
+
+        if (this_i == -1 && other_i == -1) return false;
+        std::cout << "Fourth point" << std::endl;
+        if (other_i == -1) return false;
+        std::cout << "Fifth point" << std::endl;
+        return true;
+    }
+
+    bool operator==(const FixedPoint &other) const {
+        if (integer.size() < other.integer.size()) return false;
+        if (integer.size() > other.integer.size()) return false;
+
+        std::cout << "First point " << std::endl;
+
+        for (int i = integer.size() - 1; i >= 0; i--) {
+            if (integer[i] != other.integer[i]) {
+                return false;
+            }
+        }
+        std::cout << "Second point" << std::endl;
+
+        int this_i = fractional.size() - 1, other_i = other.fractional.size() - 1;
+        for (; this_i >= 0 && other_i >= 0; this_i--, other_i--) {
+
+            if (fractional[this_i] != other.fractional[other_i]) {
+                return false;
+            }
+        }
+        std::cout << "Third point" << std::endl;
+
+        if (this_i == -1 && other_i == -1) return true;
+        std::cout << "Fourth point" << std::endl;
+        if (this_i == -1) {
+            for (; other_i >= 0; other_i--) {
+                if (other.fractional[other_i] != 0) return false;
+            }
+        }
+        std::cout << "Fifth point" << std::endl;
+        if (other_i == -1) {
+            for (; this_i >= 0; this_i--) {
+                if (fractional[this_i] != 0) return false;
+            }
+        }
+        return false;
+    }
+
+    bool operator<=(const FixedPoint &other) const {
+        return !(*this > other);
+    }
+
+    bool operator>=(const FixedPoint &other) const {
+        return !(*this < other);
+    }
+
+    bool operator!=(const FixedPoint &other) const {
+        return !(*this == other);
+    }
+
+    void print_bin() const {
+        std::cout << "Integer bits: ";
+        for (uint32_t value : integer) {
+            printBits(value);
+            std::cout << " ";
+        }
+        std::cout << std::endl;
+
+        std::cout << "Fractional bits: ";
+        for (uint32_t value : fractional) {
+            printBits(value);
+            std::cout << " ";
+        }
+        std::cout << std::endl;
     }
 
 private:
@@ -395,6 +480,12 @@ int main() {
         std::cout << "a > b" << std::endl;
     } else {
         std::cout << "a <= b" << std::endl;
+    }
+
+    if (a == b) {
+        std::cout << "a == b" << std::endl;
+    } else {
+        std::cout << "a != b" << std::endl;
     }
 
     return 0;
