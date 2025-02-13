@@ -7,7 +7,7 @@
 
 class FixedPoint {
 public:
-    FixedPoint(const std::string &num_str, int frac_bits) : fractional_bits(frac_bits) {
+    FixedPoint(const std::string &num_str, int frac_bits = 32) : fractional_bits(frac_bits) {
         auto binaryResult = decimalToBinary(num_str, fractional_bits);
 
         integer = binaryResult.first;
@@ -32,7 +32,7 @@ public:
 
     // Overload the + operator
     FixedPoint operator+(const FixedPoint &other) const {
-        FixedPoint result("0.0", std::max(fractional_bits, other.fractional_bits)); // Create a result object with the max fractional bits
+        FixedPoint result("0.0", 32); // Create a result object
 
         // Add fractional parts
         auto add_res = add_frac(fractional, other.fractional);
@@ -45,6 +45,13 @@ public:
         if (add_res.second) {
             result.integer.push_back(1);
         }
+        return result;
+    }
+
+    // Overload the - operator
+    FixedPoint operator-(const FixedPoint &other) const {
+        FixedPoint result("0.0", 32); // Create a result object
+
         return result;
     }
 
@@ -111,6 +118,35 @@ public:
         result.fractional = mult_frac_result;
 
         return result;
+    }
+
+    bool operator>(const FixedPoint &other) const {
+        if (integer.size() > other.integer.size()) return true;
+        if (integer.size() < other.integer.size()) return false;
+
+        std::cout << "First point " << std::endl;
+
+        for (int i = integer.size() - 1; i >= 0; i--) {
+            if (integer[i] > other.integer[i]) {
+                return true;
+            }
+        }
+        std::cout << "Second point" << std::endl;
+
+        int this_i = fractional.size() - 1, other_i = other.fractional.size() - 1;
+        for (; this_i >= 0 && other_i >= 0; this_i--, other_i--) {
+
+            if (fractional[this_i] > other.fractional[other_i]) {
+                return true;
+            }
+        }
+        std::cout << "Third point" << std::endl;
+
+        if (this_i == -1 && other_i == -1) return false;
+        std::cout << "Fourth point" << std::endl;
+        if (this_i == -1) return false;
+        std::cout << "Fifth point" << std::endl;
+        return true;
     }
 
 private:
@@ -306,7 +342,7 @@ private:
 
 // User-defined literal operator for FixedPoint
 FixedPoint operator""_long(long double number) {
-    printf("Create FixedPoint as <number>_long\n");
+    printf("Create FixedPoint as <%Lf>_long\n", number);
     return FixedPoint(std::to_string(number), 32); // Replace this with actual logic if needed
 }
 
@@ -333,20 +369,33 @@ int main() {
 
     // std::cout << std::endl << std::endl << std::endl;
 
-    FixedPoint num3{"832398293833333333.9298328382", 64};
-    std::cout << "NUM_3" << std::endl;
-    num3.print_bin();
-    std::cout << std::endl;
+    // FixedPoint num3{"832398293833333333.9298328382", 64};
+    // std::cout << "NUM_3" << std::endl;
+    // num3.print_bin();
+    // std::cout << std::endl;
 
-    FixedPoint num4{"92929328382364.235273672632", 64};
-    std::cout << "NUM_4" << std::endl;
-    num4.print_bin();
-    std::cout << std::endl;
+    // FixedPoint num4{"92929328382364.235273672632", 64};
+    // std::cout << "NUM_4" << std::endl;
+    // num4.print_bin();
+    // std::cout << std::endl;
 
-    FixedPoint mult_result = num3 * num4;
-    std::cout << "MULTIPLY_RESULT" << std::endl;
-    mult_result.print_bin();
+    // FixedPoint mult_result = num3 * num4;
+    // std::cout << "MULTIPLY_RESULT" << std::endl;
+    // mult_result.print_bin();
+    // std::cout << std::endl;
+
+    FixedPoint a{"837387287387192891829137827382.98329831891029090909000000000000000000000000000000000000001", 500} ;
+    FixedPoint b{"837387287387192891829137827382.98329831891029090909000000000000000000000000000000000000000", 700} ;
+
+    a.print_bin();
     std::cout << std::endl;
+    b.print_bin();
+
+    if (a > b) {
+        std::cout << "a > b" << std::endl;
+    } else {
+        std::cout << "a <= b" << std::endl;
+    }
 
     return 0;
 }
