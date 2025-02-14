@@ -22,7 +22,7 @@ public:
 
     // Overload the + operator
     FixedPoint operator+(const FixedPoint &other) const {
-        FixedPoint result("0.0", 32); // Create a result object
+        FixedPoint result("0.0", std::max(fractional_bits, other.fractional_bits)); // Create a result object
 
         // Add fractional parts
         auto add_res = add_frac(fractional, other.fractional);
@@ -47,7 +47,7 @@ public:
 
     // Overload the * operator
     FixedPoint operator*(const FixedPoint &other) const {
-        FixedPoint result("0.0", 32); // Create a result object
+        FixedPoint result("0.0", (fractional_bits / 32 + 1) * 32 + (other.fractional_bits / 32 +  1) * 32); // Create a result object
 
         int this_sz = integer.size() + fractional.size();
         int other_sz = other.integer.size() + other.fractional.size();
@@ -216,6 +216,21 @@ public:
 
     bool operator!=(const FixedPoint &other) const {
         return !(*this == other);
+    }
+
+    // Reduces the precision of the fractional part by removing bits and updating the fractional representation
+    void set_precision(size_t precision) {
+        if (precision > fractional_bits) {
+            std::cout << "You can just set less value" << std::endl;
+            return;
+        }
+        int need_to_del = fractional_bits - precision;
+        int low_order_bits = fractional_bits % 32;
+        int q_del = (need_to_del - low_order_bits) / 32 + (low_order_bits < need_to_del);
+
+        fractional.erase(fractional.begin(), fractional.begin() + q_del);
+        fractional[0] &= 0xFFFFFFFF << (need_to_del - low_order_bits) % 32;
+        fractional_bits = precision;
     }
 
     void print_bin() const {
@@ -437,10 +452,22 @@ int main() {
     // fixed.print_bin();
     // std::cout << std::endl;
 
-    // FixedPoint num1{"4294967295.23", 48};
-    // std::cout << "NUM_1" << std::endl;
-    // num1.print_bin();
-    // std::cout << std::endl;
+    FixedPoint num1{"4294967295.23", 48};
+    std::cout << "NUM_1" << std::endl;
+    num1.print_bin();
+    std::cout << std::endl;
+    num1.set_precision(10);
+    num1.print_bin();
+    std::cout << std::endl;
+
+    FixedPoint num2{"4294967295.23", 100};
+    std::cout << "NUM_2" << std::endl;
+    num2.print_bin();
+    std::cout << std::endl;
+    num2.set_precision(45);
+    num2.print_bin();
+    std::cout << std::endl;
+
 
     // FixedPoint num2{"1.2", 65};
     // std::cout << "NUM_2" << std::endl;
@@ -469,24 +496,24 @@ int main() {
     // mult_result.print_bin();
     // std::cout << std::endl;
 
-    FixedPoint a{"837387287387192891829137827382.98329831891029090909000000000000000000000000000000000000001", 500} ;
-    FixedPoint b{"837387287387192891829137827382.98329831891029090909000000000000000000000000000000000000000", 700} ;
+    // FixedPoint a{"837387287387192891829137827382.98329831891029090909000000000000000000000000000000000000001", 500} ;
+    // FixedPoint b{"837387287387192891829137827382.98329831891029090909000000000000000000000000000000000000000", 700} ;
 
-    a.print_bin();
-    std::cout << std::endl;
-    b.print_bin();
+    // a.print_bin();
+    // std::cout << std::endl;
+    // b.print_bin();
 
-    if (a > b) {
-        std::cout << "a > b" << std::endl;
-    } else {
-        std::cout << "a <= b" << std::endl;
-    }
+    // if (a > b) {
+    //     std::cout << "a > b" << std::endl;
+    // } else {
+    //     std::cout << "a <= b" << std::endl;
+    // }
 
-    if (a == b) {
-        std::cout << "a == b" << std::endl;
-    } else {
-        std::cout << "a != b" << std::endl;
-    }
+    // if (a == b) {
+    //     std::cout << "a == b" << std::endl;
+    // } else {
+    //     std::cout << "a != b" << std::endl;
+    // }
 
     return 0;
 }
