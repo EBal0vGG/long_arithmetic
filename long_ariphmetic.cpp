@@ -218,6 +218,18 @@ public:
         return !(*this == other);
     }
 
+    FixedPoint& operator+=(const FixedPoint &other) {
+        *this = *this + other;
+        return *this;
+    }
+
+    FixedPoint& operator*=(const FixedPoint &other) {
+        *this = *this * other;
+        return *this;
+    }
+
+
+
     // Reduces the precision of the fractional part by removing bits and updating the fractional representation
     void set_precision(size_t precision) {
         if (precision > fractional_bits) {
