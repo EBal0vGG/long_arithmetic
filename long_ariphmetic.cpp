@@ -40,10 +40,28 @@ public:
 
     // Overload the - operator
     FixedPoint operator-(const FixedPoint &other) const {
-        FixedPoint result("0.0", 32); // Create a result object
+    // Create a result object with the maximum fractional bits
+    FixedPoint result("0.0", std::max(fractional_bits, other.fractional_bits));
 
-        return result;
+    // Делать как с умножением, работать сразу с двумя векторами (мб)
+    // тк непонятно, какая из дробных частей больше
+
+    // Step 1: Subtract fractional parts
+    // auto sub_res = sub_frac(fractional, other.fractional);
+    // result.fractional = sub_res.first;
+
+    // Step 2: Subtract integer parts, accounting for borrow from fractional subtraction
+    // sub_res = sub_int(integer, other.integer, sub_res.second);
+    auto sub_res = sub_int(integer, other.integer, 0);
+    result.integer = sub_res.first;
+
+    // Handle underflow (if integer part becomes negative)
+    if (!sub_res.second && result.integer.empty()) {
+        result.integer.push_back(0); // Ensure the integer part is not empty
     }
+
+    return result;
+}
 
     // Overload the * operator
     FixedPoint operator*(const FixedPoint &other) const {
@@ -305,7 +323,8 @@ private:
     }
 
     // Function to add int parts of uint32_t (handling carry)
-    std::pair<std::vector<uint32_t>, bool> add_int(const std::vector<uint32_t> &a, const std::vector<uint32_t> &b, uint32_t carry = 0) const {
+    std::pair<std::vector<uint32_t>, bool> add_int(
+        const std::vector<uint32_t> &a, const std::vector<uint32_t> &b, uint32_t carry = 0) const {
         std::vector<uint32_t> result;
         size_t maxSize = std::max(a.size(), b.size());
 
@@ -331,6 +350,42 @@ private:
             }
         }
         return std::make_pair(result, carry);
+    }
+
+    std::pair<std::vector<uint32_t>, bool> sub_int(
+        const std::vector<uint32_t> &a, const std::vector<uint32_t> &b, uint32_t borrow = 0) const {
+        std::vector<uint32_t> result;
+        size_t maxSize = std::max(a.size(), b.size());
+        size_t a_i = 0, b_i = 0;
+
+        for (size_t i = 0; i < maxSize; i++) {
+            uint32_t val_a = (i < a.size()) ? a[i] : 0;
+            uint32_t val_b = (i < b.size()) ? b[i] : 0;
+            uint32_t int_res = val_a ^ val_b;
+            for (size_t bit_i = 0; bit_i < 32; bit_i++) {
+                if (bit_i == 0) result.push_back(0);
+                switch (borrow) {
+                case 0:
+                    result.back() = result.back() | (int_res & (1 << bit_i));
+                    if ((val_a & (1 << bit_i)) == 0 && (val_b & (1 << bit_i)) != 0) {
+                        borrow = 1;
+                    }
+                    break;
+                case 1:
+                    result.back() = result.back() | ((~int_res) & (1 << bit_i));
+                    if ((val_a & (1 << bit_i)) != 0 && (val_b & (1 << bit_i)) == 0) {
+                        borrow = 0;
+                    }
+                    break;
+                }
+            }
+        }
+
+        // Remove leading zeros from the result
+        while (!result.empty() && result.back() == 0) {
+            result.pop_back();
+        }
+        return std::make_pair(result, borrow);
     }
 
     // Function to convert integer part to binary
@@ -464,26 +519,25 @@ int main() {
     // fixed.print_bin();
     // std::cout << std::endl;
 
-    FixedPoint num1{"4294967295.23", 48};
-    std::cout << "NUM_1" << std::endl;
-    num1.print_bin();
-    std::cout << std::endl;
-    num1.set_precision(10);
-    num1.print_bin();
-    std::cout << std::endl;
+    // FixedPoint num1{"4294967295.23", 48};
+    // std::cout << "NUM_1" << std::endl;
+    // num1.print_bin();
+    // std::cout << std::endl;
+    // num1.set_precision(10);
+    // num1.print_bin();
+    // std::cout << std::endl;
 
-    FixedPoint num2{"4294967295.23", 100};
-    std::cout << "NUM_2" << std::endl;
-    num2.print_bin();
-    std::cout << std::endl;
-    num2.set_precision(45);
-    num2.print_bin();
-    std::cout << std::endl;
-
-
-    // FixedPoint num2{"1.2", 65};
+    // FixedPoint num2{"4294967295.23", 100};
     // std::cout << "NUM_2" << std::endl;
     // num2.print_bin();
+    // std::cout << std::endl;
+    // num2.set_precision(45);
+    // num2.print_bin();
+    // std::cout << std::endl;
+
+    // FixedPoint num3{"1.2", 65};
+    // std::cout << "NUM_3" << std::endl;
+    // num3.print_bin();
     // std::cout << std::endl;
 
     // FixedPoint add_result = num1 + num2;
@@ -493,17 +547,17 @@ int main() {
 
     // std::cout << std::endl << std::endl << std::endl;
 
-    // FixedPoint num3{"832398293833333333.9298328382", 64};
-    // std::cout << "NUM_3" << std::endl;
-    // num3.print_bin();
-    // std::cout << std::endl;
-
-    // FixedPoint num4{"92929328382364.235273672632", 64};
+    // FixedPoint num4{"832398293833333333.9298328382", 64};
     // std::cout << "NUM_4" << std::endl;
     // num4.print_bin();
     // std::cout << std::endl;
 
-    // FixedPoint mult_result = num3 * num4;
+    // FixedPoint num5{"92929328382364.235273672632", 64};
+    // std::cout << "NUM_5" << std::endl;
+    // num5.print_bin();
+    // std::cout << std::endl;
+
+    // FixedPoint mult_result = num4 * num5;
     // std::cout << "MULTIPLY_RESULT" << std::endl;
     // mult_result.print_bin();
     // std::cout << std::endl;
@@ -526,6 +580,23 @@ int main() {
     // } else {
     //     std::cout << "a != b" << std::endl;
     // }
+
+    FixedPoint num6{"92793829830283082038032830824.23"};
+    std::cout << "NUM_6" << std::endl;
+    num6.print_bin();
+    std::cout << std::endl;
+
+    FixedPoint num7{"8238223719397379722793774.23"};
+    std::cout << "NUM_7" << std::endl;
+    num7.print_bin();
+    std::cout << std::endl;
+
+    FixedPoint sub_result = num6 - num7;
+    std::cout << "SUBTRACTION_RESULT" << std::endl;
+    sub_result.print_bin();
+    std::cout << std::endl;
+
+
 
     return 0;
 }
