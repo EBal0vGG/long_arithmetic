@@ -160,6 +160,13 @@ FixedPoint FixedPoint::operator*(const FixedPoint &other) const {
     return result;
 }
 
+// Overload the / operator (No implementation in this version)
+FixedPoint FixedPoint::operator/(const FixedPoint &other) const {
+    // Create a result object with sufficient fractional bits for multiplication
+    FixedPoint result("0.0", 32);
+    return result;
+}
+
 // Overload comparison operators for two FixedPoint numbers
 bool FixedPoint::operator>(const FixedPoint &other) const {
     if (integer.size() > other.integer.size()) return true;
@@ -258,6 +265,16 @@ FixedPoint& FixedPoint::operator+=(const FixedPoint &other) {
 
 FixedPoint& FixedPoint::operator*=(const FixedPoint &other) {
     *this = *this * other;
+    return *this;
+}
+
+FixedPoint& FixedPoint::operator-=(const FixedPoint &other) {
+    *this = *this - other;
+    return *this;
+}
+
+FixedPoint& FixedPoint::operator/=(const FixedPoint &other) {
+    *this = *this / other;
     return *this;
 }
 

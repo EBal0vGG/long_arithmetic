@@ -27,6 +27,9 @@ public:
     // Overload the * operator for multiplying two FixedPoint numbers
     FixedPoint operator*(const FixedPoint &other) const;
 
+    // Overload the / operator (No implementation in this version)
+    FixedPoint operator/(const FixedPoint &other) const;
+
     // Overload comparison operators for two FixedPoint numbers
     bool operator>(const FixedPoint &other) const;
 
@@ -43,6 +46,10 @@ public:
     FixedPoint& operator+=(const FixedPoint &other);
 
     FixedPoint& operator*=(const FixedPoint &other);
+
+    FixedPoint& operator-=(const FixedPoint &other);
+
+    FixedPoint& operator/=(const FixedPoint &other);
 
     // Reduces the precision of the fractional part by removing bits and updating the fractional representation
     void set_precision(size_t precision);
