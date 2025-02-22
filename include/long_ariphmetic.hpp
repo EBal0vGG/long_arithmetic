@@ -78,6 +78,14 @@ private:
     // Function to perform subtraction of two 32-bit words with borrow
     int subtract(uint32_t &res, uint32_t val_a, uint32_t val_b, uint32_t borrow = 0) const;
 
+    std::vector<uint32_t> subtract_vec(const std::vector<uint32_t> &a, const std::vector<uint32_t> &b) const;
+
+    std::vector<uint32_t> divide(const FixedPoint &a, const FixedPoint &b, uint32_t frac_bits) const;
+
+    bool not_less_vec(const std::vector<uint32_t> &a, const std::vector<uint32_t> &b) const;
+
+    void add_bit_div(std::vector<uint32_t> &vec, bool is_one) const;
+
     // Function to convert an integer part from decimal to binary
     std::vector<uint32_t> int_part_to_bin(const std::string& numStr) const;
 

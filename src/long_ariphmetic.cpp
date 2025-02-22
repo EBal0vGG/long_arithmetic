@@ -1,5 +1,6 @@
 #include <iostream>
 #include <algorithm>
+#include <stdexcept>
 
 #include "../include/long_ariphmetic.hpp"
 
@@ -162,8 +163,11 @@ FixedPoint FixedPoint::operator*(const FixedPoint &other) const {
 
 // Overload the / operator (No implementation in this version)
 FixedPoint FixedPoint::operator/(const FixedPoint &other) const {
-    // Create a result object with sufficient fractional bits for multiplication
-    FixedPoint result("0.0", 32);
+    // Create a result object with sufficient fractional bits for division
+    FixedPoint result("0.0", std::max(fractional_bits, other.fractional_bits));
+
+    result.integer = divide(*this, other, std::max(fractional_bits, other.fractional_bits));
+
     return result;
 }
 
@@ -176,13 +180,18 @@ bool FixedPoint::operator>(const FixedPoint &other) const {
         if (integer[i] > other.integer[i]) {
             return true;
         }
+        if (integer[i] < other.integer[i]) {
+            return false;
+        }
     }
 
     int this_i = fractional.size() - 1, other_i = other.fractional.size() - 1;
     for (; this_i >= 0 && other_i >= 0; this_i--, other_i--) {
-
         if (fractional[this_i] > other.fractional[other_i]) {
             return true;
+        }
+        if (fractional[this_i] < other.fractional[other_i]) {
+            return false;
         }
     }
 
@@ -199,13 +208,18 @@ bool FixedPoint::operator<(const FixedPoint &other) const {
         if (integer[i] < other.integer[i]) {
             return true;
         }
+        if (integer[i] > other.integer[i]) {
+            return false;
+        }
     }
 
     int this_i = fractional.size() - 1, other_i = other.fractional.size() - 1;
     for (; this_i >= 0 && other_i >= 0; this_i--, other_i--) {
-
         if (fractional[this_i] < other.fractional[other_i]) {
             return true;
+        }
+        if (fractional[this_i] > other.fractional[other_i]) {
+            return false;
         }
     }
 
@@ -294,7 +308,7 @@ void FixedPoint::set_precision(size_t precision) {
 }
 
 void FixedPoint::print_bin() const {
-    std::cout << "Integer bits: ";
+    std::cout << "Integer bits:    ";
     for (uint32_t value : integer) {
         printBits(value);
         std::cout << " ";
@@ -402,6 +416,108 @@ int FixedPoint::subtract(uint32_t &res, uint32_t val_a, uint32_t val_b, uint32_t
     }
     return borrow;
 }
+
+std::vector<uint32_t> FixedPoint::subtract_vec(const std::vector<uint32_t> &a, const std::vector<uint32_t> &b) const {
+    uint32_t borrow = 0; // Borrow flag for subtraction
+
+    uint32_t a_i = 0, b_i = 0;
+    uint32_t max_sz = std::max(a.size(), b.size());
+
+    std::vector<uint32_t> result;
+
+    // Perform subtraction bit by bit for both fractional and integer parts
+    while (a_i < max_sz && b_i < max_sz) {
+        result.push_back(0);
+
+        uint32_t val_a = (a_i < a.size()) ? a[a_i++] : 0;
+        uint32_t val_b = (b_i < b.size()) ? b[b_i++] : 0;
+        borrow = subtract(result.back(), val_a, val_b, borrow);
+    }
+    return result;
+}
+
+std::vector<uint32_t> FixedPoint::divide(const FixedPoint &a, const FixedPoint &b, uint32_t frac_bits) const {
+
+    std::vector<uint32_t> result;
+
+    size_t a_int_sz = a.integer.size();
+    size_t a_frac_sz = a.fractional.size();
+    size_t b_int_sz = b.integer.size();
+    size_t b_frac_sz = b.fractional.size();
+
+    size_t a_sz = a_int_sz + a_frac_sz;
+
+    std::vector<uint32_t> remainder;
+    uint32_t bit_taken = 0;
+
+    std::vector<uint32_t> divider(b.fractional);
+    divider.insert(divider.end(), b.integer.begin(), b.integer.end());
+
+    while (!divider.empty() && divider.front() == 0) {
+        divider.erase(divider.begin());
+    }
+
+    if (divider.empty()) {
+        throw std::runtime_error("Attempted division by zero");
+    }
+
+    for (uint32_t bit_i = 0; bit_i < a_sz * 32 + frac_bits; bit_i++) {
+
+        uint32_t addition;
+
+        if (bit_i < a_int_sz * 32) {
+            addition = ((a.integer[a_int_sz - 1 - (bit_i / 32)] >> (31 - bit_taken)) & 0x00000001);
+            add_bit_div(remainder, addition);
+        } else if (bit_i < a_frac_sz * 32) {
+            addition = ((a.fractional[a_frac_sz - 1 - (bit_i / 32)] >> (31 - bit_taken)) & 0x00000001);
+            add_bit_div(remainder, addition);
+        } else {
+            add_bit_div(remainder, false);
+        }
+
+        bit_taken = (bit_taken + 1) % 32;
+
+        if (not_less_vec(remainder, divider)) {
+            remainder = subtract_vec(remainder, divider);
+            add_bit_div(result, true);
+        } else {
+            add_bit_div(result, false);
+        }
+    }
+
+    while (!result.empty() && result.front() == 0) {
+        result.erase(result.begin());
+    }
+
+    return result;
+}
+
+bool FixedPoint::not_less_vec(const std::vector<uint32_t> &a, const std::vector<uint32_t> &b) const {
+
+    for (int i = std::max(a.size(), b.size()) - 1; i >= 0; i--) {
+        uint32_t val_a = (i < a.size() ? a[i] : 0);
+        uint32_t val_b = (i < b.size() ? b[i] : 0);
+        if (val_a > val_b) {
+            return true;
+        }
+        if (val_a < val_b) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+void FixedPoint::add_bit_div(std::vector<uint32_t> &vec, bool is_one) const {
+    if (vec.empty() || vec.back() & 0x80000000) vec.push_back(0);
+    for (uint32_t i = vec.size() - 1; i > 0; i--) {
+        vec[i] <<= 1;
+        vec[i] |= vec[i - 1] >> 31;
+    }
+    vec[0] <<= 1;
+    vec[0] |= (is_one ? 1 : 0);
+}
+
 
 // Function to convert an integer part from decimal to binary
 std::vector<uint32_t> FixedPoint::int_part_to_bin(const std::string& numStr) const{
@@ -593,19 +709,34 @@ int main() {
     //     std::cout << "a != b" << std::endl;
     // }
 
-    FixedPoint num6{"949793928392839829382989483.203802839294", 100};
-    std::cout << "NUM_6" << std::endl;
-    num6.print_bin();
+    // FixedPoint num6{"949793928392839829382989483.203802839294", 100};
+    // std::cout << "NUM_6" << std::endl;
+    // num6.print_bin();
+    // std::cout << std::endl;
+
+    // FixedPoint num7{"38238283782382783728337.3239727318782128718728", 200};
+    // std::cout << "NUM_7" << std::endl;
+    // num7.print_bin();
+    // std::cout << std::endl;
+
+    // FixedPoint sub_result = num6 - num7;
+    // std::cout << "SUBTRACTION_RESULT" << std::endl;
+    // sub_result.print_bin();
+    // std::cout << std::endl;
+
+    FixedPoint num8{"78.0", 32};
+    std::cout << "NUM_8" << std::endl;
+    num8.print_bin();
     std::cout << std::endl;
 
-    FixedPoint num7{"38238283782382783728337.3239727318782128718728", 200};
-    std::cout << "NUM_7" << std::endl;
-    num7.print_bin();
+    FixedPoint num9{"19.0", 32};
+    std::cout << "NUM_9" << std::endl;
+    num9.print_bin();
     std::cout << std::endl;
 
-    FixedPoint sub_result = num6 - num7;
-    std::cout << "SUBTRACTION_RESULT" << std::endl;
-    sub_result.print_bin();
+    FixedPoint div_result = num8 / num9;
+    std::cout << "DIVISION_RESULT" << std::endl;
+    div_result.print_bin();
     std::cout << std::endl;
 
     return 0;
