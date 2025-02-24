@@ -10,6 +10,7 @@ FixedPoint::FixedPoint(const std::string &num_str, int frac_bits) : fractional_b
 
     integer = binaryResult.first;     // Store the integer part in binary
     fractional = binaryResult.second; // Store the fractional part in binary
+    is_negative = num_str[0] == '-';
 }
 
 // Default copy constructor and destructor
@@ -21,78 +22,84 @@ FixedPoint& FixedPoint::operator=(const FixedPoint& other) = default;
 
 // Overload the + operator for adding two FixedPoint numbers
 FixedPoint FixedPoint::operator+(const FixedPoint &other) const {
+
+    Op_behavior behavior = helper(*this, other, '+');
+
     // Create a result object with the maximum fractional bits between the two operands
     FixedPoint result("0.0", std::max(fractional_bits, other.fractional_bits));
 
-    // Add fractional parts and handle carry
-    auto add_res = add_frac(fractional, other.fractional);
-    result.fractional = add_res.first;
+    switch (behavior) {
+        case Op_behavior::PLUS_FST: {
+            bool res_compare = bigger_abs(*this, other);
+            const FixedPoint &a = (res_compare ? *this : other);
+            const FixedPoint &b = (res_compare ? other : *this);
 
-    // Add integer parts and handle carry from fractional addition
-    add_res = add_int(integer, other.integer, add_res.second);
-    result.integer = add_res.first;
+            auto sub_res = subtract_nums(a, b);
 
-    // If there's still a carry, append it to the integer part
-    if (add_res.second) {
-        result.integer.push_back(1);
+            result.integer = sub_res.first;     // Assign the computed integer part to the result
+            result.fractional = sub_res.second; // Assign the computed fractional part to the result
+            result.is_negative = a.is_negative;
+            break;
+        }
+        case Op_behavior::PLUS_SND: {
+
+            // Add fractional parts and handle carry
+            auto add_res = add_frac(fractional, other.fractional);
+            result.fractional = add_res.first;
+
+            // Add integer parts and handle carry from fractional addition
+            add_res = add_int(integer, other.integer, add_res.second);
+            result.integer = add_res.first;
+
+            // If there's still a carry, append it to the integer part
+            if (add_res.second) {
+                result.integer.push_back(1);
+            }
+            result.is_negative = is_negative;
+            break;
+        }
     }
     return result;
 }
 
 // Overload the - operator for subtracting two FixedPoint numbers
 FixedPoint FixedPoint::operator-(const FixedPoint &other) const {
+
+    Op_behavior behavior = helper(*this, other, '-');
     // Create a result object with the maximum fractional bits between the two operands
     FixedPoint result("0.0", std::max(fractional_bits, other.fractional_bits));
 
-    std::vector<uint32_t> result_int;
-    std::vector<uint32_t> result_frac;
+    switch (behavior) {
+        case Op_behavior::SUB_FST: {
+            // Add fractional parts and handle carry
+            auto add_res = add_frac(fractional, other.fractional);
+            result.fractional = add_res.first;
 
-    size_t this_int_sz = integer.size();
-    size_t this_frac_sz = fractional.size();
-    size_t other_int_sz = other.integer.size();
-    size_t other_frac_sz = other.fractional.size();
+            // Add integer parts and handle carry from fractional addition
+            add_res = add_int(integer, other.integer, add_res.second);
+            result.integer = add_res.first;
 
-    // Determine the maximum size of the combined integer and fractional parts
-    size_t max_sz = std::max(this_int_sz + this_frac_sz, other_int_sz + other_frac_sz);
-    size_t max_frac_sz = std::max(this_frac_sz, other_frac_sz);
-
-    uint32_t borrow = 0; // Borrow flag for subtraction
-
-    size_t this_i = 0, other_i = 0;
-
-    // Perform subtraction bit by bit for both fractional and integer parts
-    while (this_i < max_sz && other_i < max_sz) {
-        if (this_i < max_frac_sz && other_i < max_frac_sz) {
-            result_frac.push_back(0); // Initialize fractional result
-        } else {
-            result_int.push_back(0); // Initialize integer result
+            // If there's still a carry, append it to the integer part
+            if (add_res.second) {
+                result.integer.push_back(1);
+            }
+            result.is_negative = is_negative;
+            break;
         }
+        case Op_behavior::SUB_SND: {
+            bool res_compare = bigger_abs(*this, other);
+            const FixedPoint &a = (res_compare ? *this : other);
+            const FixedPoint &b = (res_compare ? other : *this);
 
-        // Handle cases where one operand has fewer fractional bits than the other
-        if (other_i < max_frac_sz - this_frac_sz) {
-            borrow = subtract(result_frac.back(), 0, other.fractional[other_i++], borrow);
-            continue;
+            auto sub_res = subtract_nums(a, b);
+
+            result.integer = sub_res.first;     // Assign the computed integer part to the result
+            result.fractional = sub_res.second; // Assign the computed fractional part to the result
+            result.is_negative = (is_negative ? res_compare : !res_compare);
+
+            break;
         }
-
-        if (this_i < max_frac_sz - other_frac_sz) {
-            borrow = subtract(result_frac.back(), fractional[this_i++], 0, borrow);
-            continue;
-        }
-
-        // Subtract corresponding fractional bits
-        if (this_i < max_frac_sz && other_i < max_frac_sz) {
-            borrow = subtract(result_frac.back(), fractional[this_i++], other.fractional[other_i++], borrow);
-            continue;
-        }
-
-        // Subtract corresponding integer bits
-        uint32_t val_a = (this_i - this_frac_sz < this_int_sz) ? integer[this_i++ - this_frac_sz] : 0;
-        uint32_t val_b = (other_i - other_frac_sz < other_int_sz) ? other.integer[other_i++ - other_frac_sz] : 0;
-        borrow = subtract(result_int.back(), val_a, val_b, borrow);
     }
-    result.integer = result_int;     // Assign the computed integer part to the result
-    result.fractional = result_frac; // Assign the computed fractional part to the result
-
     return result;
 }
 
@@ -157,6 +164,7 @@ FixedPoint FixedPoint::operator*(const FixedPoint &other) const {
 
     result.integer = mult_int_result;     // Assign the computed integer part to the result
     result.fractional = mult_frac_result; // Assign the computed fractional part to the result
+    result.is_negative = is_negative ^ other.is_negative;
 
     return result;
 }
@@ -167,7 +175,7 @@ FixedPoint FixedPoint::operator/(const FixedPoint &other) const {
     FixedPoint result("0.0", std::max(fractional_bits, other.fractional_bits));
 
     result.integer = divide(*this, other, std::max(fractional_bits, other.fractional_bits));
-
+    result.is_negative = is_negative ^ other.is_negative;
     return result;
 }
 
@@ -308,6 +316,8 @@ void FixedPoint::set_precision(size_t precision) {
 }
 
 void FixedPoint::print_bin() const {
+    std::cout << "Sign: ";
+    std::cout << (is_negative ? "-" : "+") << std::endl;
     std::cout << "Integer bits:    ";
     for (uint32_t value : integer) {
         printBits(value);
@@ -323,11 +333,57 @@ void FixedPoint::print_bin() const {
     std::cout << std::endl;
 }
 
+Op_behavior FixedPoint::helper(const FixedPoint &a, const FixedPoint &b, char op) const {
+    bool sign_xor = a.is_negative ^ b.is_negative;
+    switch (op) {
+    case '+':
+        if (sign_xor)
+            return Op_behavior::PLUS_FST;
+        else
+            return Op_behavior::PLUS_SND;
+    case '-':
+        if (sign_xor)
+            return Op_behavior::SUB_FST;
+        else
+            return Op_behavior::SUB_SND;
+    }
+    throw std::invalid_argument("Invalid argument in FixedPoint::helper");
+}
+
+
 // Function to print bits of a uint32_t value
 void FixedPoint::printBits(uint32_t value) const {
     for (int i = 31; i >= 0; --i) {
         std::cout << ((value >> i) & 1);
     }
+}
+
+bool FixedPoint::bigger_abs(const FixedPoint &a, const FixedPoint &b) const {
+    if (a.integer.size() > b.integer.size()) return true;
+    if (a.integer.size() < b.integer.size()) return false;
+
+    for (int i = a.integer.size() - 1; i >= 0; i--) {
+        if (a.integer[i] > b.integer[i]) {
+            return true;
+        }
+        if (a.integer[i] < b.integer[i]) {
+            return false;
+        }
+    }
+
+    int a_i = a.fractional.size() - 1, b_i = b.fractional.size() - 1;
+    for (; a_i >= 0 && b_i >= 0; a_i--, b_i--) {
+        if (a.fractional[a_i] > b.fractional[b_i]) {
+            return true;
+        }
+        if (a.fractional[a_i] < b.fractional[b_i]) {
+            return false;
+        }
+    }
+
+    if (a_i == -1 && b_i == -1) return false;
+    if (a_i == -1) return false;
+    return true;
 }
 
 // Function to add fractional parts of two numbers
@@ -393,6 +449,58 @@ std::pair<std::vector<uint32_t>, bool> FixedPoint::add_int(const std::vector<uin
         }
     }
     return std::make_pair(result, carry);
+}
+
+std::pair<std::vector<uint32_t>, std::vector<uint32_t>>
+FixedPoint::subtract_nums(const FixedPoint &a, const FixedPoint &b) const {
+    std::vector<uint32_t> result_int;
+    std::vector<uint32_t> result_frac;
+
+    size_t a_int_sz = a.integer.size();
+    size_t a_frac_sz = a.fractional.size();
+    size_t b_int_sz = b.integer.size();
+    size_t b_frac_sz = b.fractional.size();
+
+    // Determine the maximum size of the combined integer and fractional parts
+    size_t max_sz = std::max(a_int_sz + a_frac_sz, b_int_sz + b_frac_sz);
+    size_t max_frac_sz = std::max(a_frac_sz, b_frac_sz);
+
+    uint32_t borrow = 0; // Borrow flag for subtraction
+
+    size_t a_i = 0, b_i = 0;
+
+    // Perform subtraction bit by bit for both fractional and integer parts
+    while (a_i < max_sz && b_i < max_sz) {
+        if (a_i < max_frac_sz && b_i < max_frac_sz) {
+            result_frac.push_back(0); // Initialize fractional result
+        } else {
+            result_int.push_back(0); // Initialize integer result
+        }
+
+        // Handle cases where one operand has fewer fractional bits than the other
+        if (b_i < max_frac_sz - a_frac_sz) {
+            borrow = subtract(result_frac.back(), 0, b.fractional[b_i++], borrow);
+            continue;
+        }
+
+        if (a_i < max_frac_sz - b_frac_sz) {
+            borrow = subtract(result_frac.back(), a.fractional[a_i++], 0, borrow);
+            continue;
+        }
+
+        // Subtract corresponding fractional bits
+        if (a_i < max_frac_sz && b_i < max_frac_sz) {
+            borrow = subtract(result_frac.back(), a.fractional[a_i++], b.fractional[b_i++], borrow);
+            continue;
+        }
+
+        // Subtract corresponding integer bits
+        uint32_t val_a = (a_i - a_frac_sz < a_int_sz) ? a.integer[a_i++ - a_frac_sz] : 0;
+        uint32_t val_b = (b_i - b_frac_sz < b_int_sz) ? b.integer[b_i++ - b_frac_sz] : 0;
+        borrow = subtract(result_int.back(), val_a, val_b, borrow);
+    }
+
+    return std::make_pair(result_int, result_frac);
 }
 
 // Function to perform subtraction of two 32-bit words with borrow
@@ -520,7 +628,7 @@ void FixedPoint::add_bit_div(std::vector<uint32_t> &vec, bool is_one) const {
 
 
 // Function to convert an integer part from decimal to binary
-std::vector<uint32_t> FixedPoint::int_part_to_bin(const std::string& numStr) const{
+std::vector<uint32_t> FixedPoint::int_part_to_bin(const std::string& numStr) const {
     std::string currentNumStr = numStr; // Copy of the input string
     std::vector<uint32_t> binaryResult; // To store the binary result
 
@@ -611,17 +719,20 @@ std::vector<uint32_t> FixedPoint::fracToBinary(const std::string& fracStr, int f
 
 // Function to convert a decimal string to binary representation
 std::pair<std::vector<uint32_t>, std::vector<uint32_t>>
-FixedPoint::decimalToBinary(const std::string& numStr, int frac_bits) const{
+FixedPoint::decimalToBinary(const std::string& numStr, int frac_bits) const {
+    uint32_t is_sign = (numStr[0] == '-' || numStr[0] == '+' ? 1 : 0);
+
     // Find the position of the decimal point
     size_t dotPos = numStr.find('.');
 
     // If no decimal point exists, treat it as an integer
     if (dotPos == std::string::npos) {
-        return std::make_pair(int_part_to_bin(numStr), std::vector<uint32_t>());
+        return std::make_pair(int_part_to_bin(numStr.substr(is_sign)), std::vector<uint32_t>());
     }
 
     // Extract the integer and fractional parts
-    std::string integerPartStr = numStr.substr(0, dotPos);
+    std::string integerPartStr = numStr.substr(is_sign, dotPos - is_sign);
+
     std::string fractionalPartStr = numStr.substr(dotPos + 1);
 
     // Convert the integer part to binary
@@ -724,12 +835,12 @@ int main() {
     // sub_result.print_bin();
     // std::cout << std::endl;
 
-    FixedPoint num8{"78.0", 32};
+    FixedPoint num8{"-1.0", 32};
     std::cout << "NUM_8" << std::endl;
     num8.print_bin();
     std::cout << std::endl;
 
-    FixedPoint num9{"19.0", 32};
+    FixedPoint num9{"-32.0", 32};
     std::cout << "NUM_9" << std::endl;
     num9.print_bin();
     std::cout << std::endl;

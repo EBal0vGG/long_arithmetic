@@ -6,6 +6,13 @@
 #include <cstdint>
 #include <utility>
 
+enum class Op_behavior {
+    PLUS_FST,
+    PLUS_SND,
+    SUB_FST,
+    SUB_SND
+};
+
 class FixedPoint {
 public:
     // Constructor: Converts a decimal string to binary representation with specified fractional bits
@@ -60,7 +67,11 @@ private:
     std::vector<uint32_t> integer;    // Binary representation of the integer part
     std::vector<uint32_t> fractional; // Binary representation of the fractional part
     int fractional_bits;              // Number of fractional bits
-    bool is_negative;                 // Flag for negative numbers (not used in this implementation)
+    bool is_negative = false;         // Flag for negative numbers
+
+    Op_behavior helper(const FixedPoint &a, const FixedPoint &b, char op) const;
+
+    bool bigger_abs(const FixedPoint &a, const FixedPoint &b) const;
 
     // Function to print bits of a uint32_t value
     void printBits(uint32_t value) const;
@@ -74,6 +85,9 @@ private:
     std::pair<std::vector<uint32_t>, bool> add_int(const std::vector<uint32_t> &a,
                                                    const std::vector<uint32_t> &b,
                                                    uint32_t carry = 0) const;
+
+    std::pair<std::vector<uint32_t>, std::vector<uint32_t>>
+    subtract_nums(const FixedPoint &a, const FixedPoint &b) const;
 
     // Function to perform subtraction of two 32-bit words with borrow
     int subtract(uint32_t &res, uint32_t val_a, uint32_t val_b, uint32_t borrow = 0) const;
