@@ -34,7 +34,7 @@ public:
     // Overload the * operator for multiplying two FixedPoint numbers
     FixedPoint operator*(const FixedPoint &other) const;
 
-    // Overload the / operator (No implementation in this version)
+    // Overload the / operator
     FixedPoint operator/(const FixedPoint &other) const;
 
     // Overload comparison operators for two FixedPoint numbers

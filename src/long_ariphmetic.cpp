@@ -195,7 +195,7 @@ FixedPoint FixedPoint::operator*(const FixedPoint &other) const {
     return result;
 }
 
-// Overload the / operator (No implementation in this version)
+// Overload the / operator
 FixedPoint FixedPoint::operator/(const FixedPoint &other) const {
     // Create a result object with sufficient fractional bits for division
     FixedPoint result("0.0", std::max(fractional_bits, other.fractional_bits));
