@@ -235,62 +235,21 @@ FixedPoint FixedPoint::operator/(const FixedPoint &other) const {
 
 // Overload comparison operators for two FixedPoint numbers
 bool FixedPoint::operator>(const FixedPoint &other) const {
-    if (integer.size() > other.integer.size()) return true;
-    if (integer.size() < other.integer.size()) return false;
-
-    for (int i = integer.size() - 1; i >= 0; i--) {
-        if (integer[i] > other.integer[i]) {
-            return true;
-        }
-        if (integer[i] < other.integer[i]) {
-            return false;
-        }
-    }
-
-    int this_i = fractional.size() - 1, other_i = other.fractional.size() - 1;
-    for (; this_i >= 0 && other_i >= 0; this_i--, other_i--) {
-        if (fractional[this_i] > other.fractional[other_i]) {
-            return true;
-        }
-        if (fractional[this_i] < other.fractional[other_i]) {
-            return false;
-        }
-    }
-
-    if (this_i == -1 && other_i == -1) return false;
-    if (this_i == -1) return false;
-    return true;
+    bool abs_compare = bigger_abs(*this, other);
+    if (!is_negative && !other.integer) return abs_compare;
+    if (is_negative && other.integer) return !abs_compare;
+    return !is_negative;
 }
 
 bool FixedPoint::operator<(const FixedPoint &other) const {
-    if (integer.size() < other.integer.size()) return true;
-    if (integer.size() > other.integer.size()) return false;
-
-    for (int i = integer.size() - 1; i >= 0; i--) {
-        if (integer[i] < other.integer[i]) {
-            return true;
-        }
-        if (integer[i] > other.integer[i]) {
-            return false;
-        }
-    }
-
-    int this_i = fractional.size() - 1, other_i = other.fractional.size() - 1;
-    for (; this_i >= 0 && other_i >= 0; this_i--, other_i--) {
-        if (fractional[this_i] < other.fractional[other_i]) {
-            return true;
-        }
-        if (fractional[this_i] > other.fractional[other_i]) {
-            return false;
-        }
-    }
-
-    if (this_i == -1 && other_i == -1) return false;
-    if (other_i == -1) return false;
-    return true;
+    bool abs_compare = less_abs(*this, other);
+    if (!is_negative && !other.integer) return abs_compare;
+    if (is_negative && other.integer) return !abs_compare;
+    return is_negative;
 }
 
 bool FixedPoint::operator==(const FixedPoint &other) const {
+    if (is_negative != other.is_negative) return false;
     if (integer.size() < other.integer.size()) return false;
     if (integer.size() > other.integer.size()) return false;
 
@@ -440,6 +399,33 @@ bool FixedPoint::bigger_abs(const FixedPoint &a, const FixedPoint &b) const {
 
     if (a_i == -1 && b_i == -1) return false;
     if (a_i == -1) return false;
+    return true;
+}
+
+bool FixedPoint::less_abs(const FixedPoint &a, const FixedPoint &b) const {
+    if (a.integer.size() < b.integer.size()) return true;
+    if (a.integer.size() > b.integer.size()) return false;
+
+    for (int i = a.integer.size() - 1; i >= 0; i--) {
+        if (a.integer[i] < b.integer[i]) {
+            return true;
+        }
+        if (a.integer[i] > b.integer[i]) {
+            return false;
+        }
+    }
+
+    int a_i = a.fractional.size() - 1, b_i = b.fractional.size() - 1;
+    for (; a_i >= 0 && b_i >= 0; a_i--, b_i--) {
+        if (a.fractional[a_i] < b.fractional[b_i]) {
+            return true;
+        }
+        if (a.fractional[a_i] > b.fractional[b_i]) {
+            return false;
+        }
+    }
+    if (a_i == -1 && b_i == -1) return false;
+    if (b_i == -1) return false;
     return true;
 }
 

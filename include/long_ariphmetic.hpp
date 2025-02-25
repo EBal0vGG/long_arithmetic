@@ -73,6 +73,8 @@ private:
 
     bool bigger_abs(const FixedPoint &a, const FixedPoint &b) const;
 
+    bool FixedPoint::less_abs(const FixedPoint &a, const FixedPoint &b) const;
+
     // Function to print bits of a uint32_t value
     void printBits(uint32_t value) const;
 
