@@ -59,6 +59,15 @@ FixedPoint FixedPoint::operator+(const FixedPoint &other) const {
             break;
         }
     }
+
+    while (result.fractional.size() > 1 && result.fractional.front() == 0) {
+        result.fractional.erase(result.fractional.begin());
+    }
+    while (result.integer.size() > 1 && result.integer.back() == 0) {
+        result.integer.erase(result.integer.end() - 1);
+    }
+    result.fractional_bits = fractional.size() * 32;
+
     return result;
 }
 
@@ -100,6 +109,15 @@ FixedPoint FixedPoint::operator-(const FixedPoint &other) const {
             break;
         }
     }
+
+    while (result.fractional.size() > 1 && result.fractional.front() == 0) {
+        result.fractional.erase(result.fractional.begin());
+    }
+    while (result.integer.size() > 1 && result.integer.back() == 0) {
+        result.integer.erase(result.integer.end() - 1);
+    }
+    result.fractional_bits = fractional.size() * 32;
+
     return result;
 }
 
@@ -166,6 +184,14 @@ FixedPoint FixedPoint::operator*(const FixedPoint &other) const {
     result.fractional = mult_frac_result; // Assign the computed fractional part to the result
     result.is_negative = is_negative ^ other.is_negative;
 
+    while (result.fractional.size() > 1 && result.fractional.front() == 0) {
+        result.fractional.erase(result.fractional.begin());
+    }
+    while (result.integer.size() > 1 && result.integer.back() == 0) {
+        result.integer.erase(result.integer.end() - 1);
+    }
+    result.fractional_bits = fractional.size() * 32;
+
     return result;
 }
 
@@ -173,9 +199,37 @@ FixedPoint FixedPoint::operator*(const FixedPoint &other) const {
 FixedPoint FixedPoint::operator/(const FixedPoint &other) const {
     // Create a result object with sufficient fractional bits for division
     FixedPoint result("0.0", std::max(fractional_bits, other.fractional_bits));
+    uint32_t res_precision = std::max(fractional_bits, other.fractional_bits);
 
-    result.integer = divide(*this, other, std::max(fractional_bits, other.fractional_bits));
+    std::vector<uint32_t> div_res = divide(*this, other, res_precision + (32 - res_precision % 32) % 32);
+
+    uint32_t frac_sz = (res_precision   + (32 - res_precision   % 32) % 32  +
+                        fractional_bits + (32 - fractional_bits % 32) % 32) / 32;
+
+    result.integer.clear();
+    result.fractional.clear();
+
+    for (uint32_t i = 0; i < div_res.size(); i++) {
+        if (i < frac_sz) {
+            result.fractional.push_back(div_res[i]);
+        } else {
+            result.integer.push_back(div_res[i]);
+        }
+    }
+
+    if (result.integer.empty()) result.integer.push_back(0);
+    if (result.fractional.empty()) result.fractional.push_back(0);
+
     result.is_negative = is_negative ^ other.is_negative;
+
+    while (result.fractional.size() > 1 && result.fractional.front() == 0) {
+        result.fractional.erase(result.fractional.begin());
+    }
+    while (result.integer.size() > 1 && result.integer.back() == 0) {
+        result.integer.erase(result.integer.end() - 1);
+    }
+    result.fractional_bits = fractional.size() * 32;
+
     return result;
 }
 
@@ -307,11 +361,14 @@ void FixedPoint::set_precision(size_t precision) {
         return;
     }
     int need_to_del = fractional_bits - precision;
-    int low_order_bits = fractional_bits % 32;
-    int q_del = (need_to_del - low_order_bits) / 32 + (low_order_bits < need_to_del);
-
-    fractional.erase(fractional.begin(), fractional.begin() + q_del);
-    fractional[0] &= 0xFFFFFFFF << (need_to_del - low_order_bits) % 32;
+    int low_order_bits = (fractional_bits % 32 ? fractional_bits % 32 : 32);
+    if (need_to_del >= low_order_bits) {
+        int q_del = (need_to_del - low_order_bits) / 32 + 1;
+        fractional.erase(fractional.begin(), fractional.begin() + q_del);
+        fractional[0] &= 0xFFFFFFFF << (need_to_del - low_order_bits) % 32;
+    } else {
+        fractional[0] &= 0xFFFFFFFF << need_to_del % 32;
+    }
     fractional_bits = precision;
 }
 
@@ -593,9 +650,9 @@ std::vector<uint32_t> FixedPoint::divide(const FixedPoint &a, const FixedPoint &
         }
     }
 
-    while (!result.empty() && result.front() == 0) {
-        result.erase(result.begin());
-    }
+    // while (!result.empty() && result.front() == 0) {
+    //     result.erase(result.begin());
+    // }
 
     return result;
 }
@@ -835,12 +892,12 @@ int main() {
     // sub_result.print_bin();
     // std::cout << std::endl;
 
-    FixedPoint num8{"-1.0", 32};
+    FixedPoint num8{"18.0", 32};
     std::cout << "NUM_8" << std::endl;
     num8.print_bin();
     std::cout << std::endl;
 
-    FixedPoint num9{"-32.0", 32};
+    FixedPoint num9{"-71.0", 32};
     std::cout << "NUM_9" << std::endl;
     num9.print_bin();
     std::cout << std::endl;
@@ -848,6 +905,7 @@ int main() {
     FixedPoint div_result = num8 / num9;
     std::cout << "DIVISION_RESULT" << std::endl;
     div_result.print_bin();
+
     std::cout << std::endl;
 
     return 0;
