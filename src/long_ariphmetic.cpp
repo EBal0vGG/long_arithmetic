@@ -2,6 +2,8 @@
 #include <algorithm>
 #include <stdexcept>
 
+#include <chrono>
+
 #include "../include/long_ariphmetic.hpp"
 
 // Constructor: Converts a decimal string to binary representation with specified fractional bits
@@ -62,11 +64,13 @@ FixedPoint FixedPoint::operator+(const FixedPoint &other) const {
 
     while (result.fractional.size() > 1 && result.fractional.front() == 0) {
         result.fractional.erase(result.fractional.begin());
+        if (result.fractional_bits > 32)
+            result.fractional_bits -= 32;
     }
     while (result.integer.size() > 1 && result.integer.back() == 0) {
         result.integer.erase(result.integer.end() - 1);
     }
-    result.fractional_bits = fractional.size() * 32;
+    result.fractional_bits = result.fractional.size() * 32;
 
     return result;
 }
@@ -112,11 +116,13 @@ FixedPoint FixedPoint::operator-(const FixedPoint &other) const {
 
     while (result.fractional.size() > 1 && result.fractional.front() == 0) {
         result.fractional.erase(result.fractional.begin());
+        if (result.fractional_bits > 32)
+            result.fractional_bits -= 32;
     }
     while (result.integer.size() > 1 && result.integer.back() == 0) {
         result.integer.erase(result.integer.end() - 1);
     }
-    result.fractional_bits = fractional.size() * 32;
+    result.fractional_bits = result.fractional.size() * 32;
 
     return result;
 }
@@ -186,11 +192,13 @@ FixedPoint FixedPoint::operator*(const FixedPoint &other) const {
 
     while (result.fractional.size() > 1 && result.fractional.front() == 0) {
         result.fractional.erase(result.fractional.begin());
+        if (result.fractional_bits > 32)
+            result.fractional_bits -= 32;
     }
     while (result.integer.size() > 1 && result.integer.back() == 0) {
         result.integer.erase(result.integer.end() - 1);
     }
-    result.fractional_bits = fractional.size() * 32;
+    result.fractional_bits = result.fractional.size() * 32;
 
     return result;
 }
@@ -199,15 +207,25 @@ FixedPoint FixedPoint::operator*(const FixedPoint &other) const {
 FixedPoint FixedPoint::operator/(const FixedPoint &other) const {
     // Create a result object with sufficient fractional bits for division
     FixedPoint result("0.0", std::max(fractional_bits, other.fractional_bits));
-    uint32_t res_precision = std::max(fractional_bits, other.fractional_bits);
+    uint32_t max_precision = std::max(fractional_bits, other.fractional_bits);
+    uint32_t res_precision = max_precision % 32 == 0 ? max_precision : max_precision + (32 - max_precision % 32);
+    // std::cout << fractional.size() << std::endl;
 
-    std::vector<uint32_t> div_res = divide(*this, other, res_precision + (32 - res_precision % 32) % 32);
-
-    uint32_t frac_sz = (res_precision   + (32 - res_precision   % 32) % 32  +
-                        fractional_bits + (32 - fractional_bits % 32) % 32) / 32;
+    std::vector<uint32_t> div_res = divide(*this, other, res_precision);
+    uint32_t this_prec = fractional_bits % 32 == 0 ? fractional_bits : fractional_bits + (32 - fractional_bits % 32);
+    uint32_t frac_sz = (res_precision + this_prec) / 32 + (fractional_bits == 0 ? 1 : 0);
 
     result.integer.clear();
     result.fractional.clear();
+
+    // std::cout << max_precision << " " << res_precision << " " << this_prec << " "
+    //           << frac_sz << " " << div_res.size() << std::endl;
+
+    // for (uint32_t value : div_res) {
+    //     printBits(value);
+    //     std::cout << " ";
+    // }
+    // std::cout << std::endl;
 
     for (uint32_t i = 0; i < div_res.size(); i++) {
         if (i < frac_sz) {
@@ -228,7 +246,8 @@ FixedPoint FixedPoint::operator/(const FixedPoint &other) const {
     while (result.integer.size() > 1 && result.integer.back() == 0) {
         result.integer.erase(result.integer.end() - 1);
     }
-    result.fractional_bits = fractional.size() * 32;
+
+    result.fractional_bits = result.fractional.size() * 32;
 
     return result;
 }
@@ -236,15 +255,15 @@ FixedPoint FixedPoint::operator/(const FixedPoint &other) const {
 // Overload comparison operators for two FixedPoint numbers
 bool FixedPoint::operator>(const FixedPoint &other) const {
     bool abs_compare = bigger_abs(*this, other);
-    if (!is_negative && !other.integer) return abs_compare;
-    if (is_negative && other.integer) return !abs_compare;
+    if (!is_negative && !other.is_negative) return abs_compare;
+    if (is_negative && other.is_negative) return !abs_compare;
     return !is_negative;
 }
 
 bool FixedPoint::operator<(const FixedPoint &other) const {
     bool abs_compare = less_abs(*this, other);
-    if (!is_negative && !other.integer) return abs_compare;
-    if (is_negative && other.integer) return !abs_compare;
+    if (!is_negative && !other.is_negative) return abs_compare;
+    if (is_negative && other.is_negative) return !abs_compare;
     return is_negative;
 }
 
@@ -319,14 +338,20 @@ void FixedPoint::set_precision(size_t precision) {
         std::cout << "You can just set less value" << std::endl;
         return;
     }
+
     int need_to_del = fractional_bits - precision;
     int low_order_bits = (fractional_bits % 32 ? fractional_bits % 32 : 32);
     if (need_to_del >= low_order_bits) {
-        int q_del = (need_to_del - low_order_bits) / 32 + 1;
+        uint32_t q_del = (need_to_del - low_order_bits) / 32 + 1;
+
         fractional.erase(fractional.begin(), fractional.begin() + q_del);
-        fractional[0] &= 0xFFFFFFFF << (need_to_del - low_order_bits) % 32;
+
+        if (!fractional.empty())
+            fractional[0] &= 0xFFFFFFFF << ((need_to_del - low_order_bits) % 32);
+        else
+            fractional.push_back(0);
     } else {
-        fractional[0] &= 0xFFFFFFFF << need_to_del % 32;
+        fractional[0] &= 0xFFFFFFFF << need_to_del;
     }
     fractional_bits = precision;
 }
@@ -334,6 +359,7 @@ void FixedPoint::set_precision(size_t precision) {
 void FixedPoint::print_bin() const {
     std::cout << "Sign: ";
     std::cout << (is_negative ? "-" : "+") << std::endl;
+    std::cout << "Fractional_bits: " << fractional_bits << std::endl;
     std::cout << "Integer bits:    ";
     for (uint32_t value : integer) {
         printBits(value);
@@ -347,6 +373,68 @@ void FixedPoint::print_bin() const {
         std::cout << " ";
     }
     std::cout << std::endl;
+}
+
+std::string FixedPoint::to_string() const {
+    FixedPoint ten = FixedPoint{"10"};
+
+    FixedPoint before = *this;
+
+    before.set_precision(0);
+
+    FixedPoint after = *this - before;
+
+    std::string before_res;
+    while (!before.is_zero()) {
+        FixedPoint cur = before / ten;
+        cur.set_precision(0);
+        FixedPoint rem = before - (cur * ten);
+        before_res.push_back('0' + rem.integer[0]);
+
+        before = cur;
+    }
+
+    if (before_res == "") {
+        before_res = "0";
+    }
+
+    std::reverse(before_res.begin(), before_res.end());
+
+    std::string after_res;
+    int stop = after.fractional_bits;
+    while (!after.is_zero() && stop > 0) {
+        FixedPoint cur = after * ten;
+        FixedPoint rem = after * ten;
+        rem.set_precision(0);
+
+        after_res.push_back('0' + rem.integer[0]);
+
+        after = cur - rem;
+        stop -= 4;
+    }
+
+    if (after_res == "") {
+        after_res = "0";
+    }
+
+    if (is_negative) {
+        return "-" + before_res + "." + after_res;
+    }
+
+    std::cout << after_res.size() << std::endl;
+
+    return before_res + "." + after_res;
+}
+
+bool FixedPoint::is_zero() const {
+    if (integer.size() == 0 && fractional.size() == 0) return true;
+    for (uint32_t val : integer) {
+        if (val != 0) return false;
+    }
+    for (uint32_t val : fractional) {
+        if (val != 0) return false;
+    }
+    return true;
 }
 
 Op_behavior FixedPoint::helper(const FixedPoint &a, const FixedPoint &b, char op) const {
@@ -591,9 +679,9 @@ std::vector<uint32_t> FixedPoint::divide(const FixedPoint &a, const FixedPoint &
 
     std::vector<uint32_t> result;
 
-    size_t a_int_sz = a.integer.size();
+    size_t a_int_sz  = a.integer.size();
     size_t a_frac_sz = a.fractional.size();
-    size_t b_int_sz = b.integer.size();
+    size_t b_int_sz  = b.integer.size();
     size_t b_frac_sz = b.fractional.size();
 
     size_t a_sz = a_int_sz + a_frac_sz;
@@ -611,6 +699,12 @@ std::vector<uint32_t> FixedPoint::divide(const FixedPoint &a, const FixedPoint &
     if (divider.empty()) {
         throw std::runtime_error("Attempted division by zero");
     }
+
+    // for (uint32_t value : divider) {
+    //     printBits(value);
+    //     std::cout << " ";
+    // }
+    // std::cout << std::endl;
 
     for (uint32_t bit_i = 0; bit_i < a_sz * 32 + frac_bits; bit_i++) {
 
@@ -634,11 +728,8 @@ std::vector<uint32_t> FixedPoint::divide(const FixedPoint &a, const FixedPoint &
         } else {
             add_bit_div(result, false);
         }
-    }
 
-    // while (!result.empty() && result.front() == 0) {
-    //     result.erase(result.begin());
-    // }
+    }
 
     return result;
 }
@@ -731,7 +822,7 @@ std::string FixedPoint::multiplyByTwo(const std::string& numStr) const{
 }
 
 // Function to convert a fractional part from decimal to binary
-std::vector<uint32_t> FixedPoint::fracToBinary(const std::string& fracStr, int frac_bits) const{
+std::vector<uint32_t> FixedPoint::fracToBinary(const std::string& fracStr, int frac_bits) const {
     std::vector<uint32_t> binary;
     std::string fractionalPart = fracStr;
     int frac_part_size = fractionalPart.size();
@@ -754,8 +845,10 @@ std::vector<uint32_t> FixedPoint::fracToBinary(const std::string& fracStr, int f
             fractionalPart = "0";
         }
     }
-
-    binary[0] <<= 32 - (frac_bits % 32);
+    if (!binary.empty())
+        binary[0] <<= 32 - (frac_bits % 32);
+    else
+        binary.push_back(0);
 
     return binary;
 }
@@ -770,7 +863,13 @@ FixedPoint::decimalToBinary(const std::string& numStr, int frac_bits) const {
 
     // If no decimal point exists, treat it as an integer
     if (dotPos == std::string::npos) {
-        return std::make_pair(int_part_to_bin(numStr.substr(is_sign)), std::vector<uint32_t>());
+        std::vector<uint32_t> binaryInteger = int_part_to_bin(numStr.substr(is_sign));
+        std::vector<uint32_t> binaryFraction;
+        uint32_t frac_sz = (frac_bits % 32 == 0 ? (frac_bits == 0 ? 1 : frac_bits / 32) : frac_bits / 32 + 1);
+        for (uint32_t i = 0; i < frac_sz; i++) {
+            binaryFraction.push_back(0);
+        }
+        return std::make_pair(binaryInteger, binaryFraction);
     }
 
     // Extract the integer and fractional parts
@@ -787,7 +886,6 @@ FixedPoint::decimalToBinary(const std::string& numStr, int frac_bits) const {
     // Combine the results
     return std::make_pair(binaryInteger, binaryFraction);
 }
-
 
 // User-defined literal operator for creating FixedPoint objects
 FixedPoint operator""_long(long double number) {
@@ -878,21 +976,49 @@ int main() {
     // sub_result.print_bin();
     // std::cout << std::endl;
 
-    FixedPoint num8{"18.0", 32};
-    std::cout << "NUM_8" << std::endl;
-    num8.print_bin();
-    std::cout << std::endl;
+    // FixedPoint num8{"18.32323", 32};
+    // std::cout << "NUM_8" << std::endl;
+    // num8.set_precision(0);
+    // num8.print_bin();
+    // std::cout << std::endl;
 
-    FixedPoint num9{"-71.0", 32};
-    std::cout << "NUM_9" << std::endl;
-    num9.print_bin();
-    std::cout << std::endl;
+    // FixedPoint num9{"-71.0", 32};
+    // std::cout << "NUM_9" << std::endl;
+    // num9.print_bin();
+    // std::cout << std::endl;
 
-    FixedPoint div_result = num8 / num9;
-    std::cout << "DIVISION_RESULT" << std::endl;
-    div_result.print_bin();
+    // FixedPoint div_result = num8 / num9;
+    // std::cout << "DIVISION_RESULT" << std::endl;
+    // div_result.print_bin();
 
-    std::cout << std::endl;
+    // std::cout << std::endl;
+
+    auto start = std::chrono::high_resolution_clock::now();
+
+
+    FixedPoint a = FixedPoint{"103993", 224};
+
+    FixedPoint b = FixedPoint{"33102", 224};
+
+    FixedPoint c = a / b;
+    auto str = c.to_string();
+    auto stop = std::chrono::high_resolution_clock::now();
+    std::cout << str << std::endl;
+    auto duration = std::chrono::duration_cast<std::chrono::microseconds>(stop - start);
+    std::cout << "Time taken by function: " << duration.count() << std::endl;
+
+
+    // a = FixedPoint{"3", 32};
+    // b = FixedPoint{"0", 0} * FixedPoint{"10", 0};
+    // c = a - b;
+    // c.print_bin();
+    // c.to_string();
+
+    // FixedPoint result{"152.18392", 128};
+    // std::cout << "RESULT" << std::endl;
+    // // result.set_precision(0);
+    // // result.print_bin();
+    // std::cout << result.to_string() << std::endl;
 
     return 0;
 }

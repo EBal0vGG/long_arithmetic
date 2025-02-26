@@ -63,17 +63,21 @@ public:
 
     void print_bin() const;
 
+    std::string to_string() const;
+
 private:
     std::vector<uint32_t> integer;    // Binary representation of the integer part
     std::vector<uint32_t> fractional; // Binary representation of the fractional part
-    int fractional_bits;              // Number of fractional bits
+    uint32_t fractional_bits;         // Number of fractional bits
     bool is_negative = false;         // Flag for negative numbers
+
+    bool is_zero() const;
 
     Op_behavior helper(const FixedPoint &a, const FixedPoint &b, char op) const;
 
     bool bigger_abs(const FixedPoint &a, const FixedPoint &b) const;
 
-    bool FixedPoint::less_abs(const FixedPoint &a, const FixedPoint &b) const;
+    bool less_abs(const FixedPoint &a, const FixedPoint &b) const;
 
     // Function to print bits of a uint32_t value
     void printBits(uint32_t value) const;
