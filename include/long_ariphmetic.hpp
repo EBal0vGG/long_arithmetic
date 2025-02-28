@@ -18,6 +18,9 @@ public:
     // Constructor: Converts a decimal string to binary representation with specified fractional bits
     FixedPoint(const std::string &num_str, int frac_bits = 32);
 
+    FixedPoint(const double &num, int frac_bits = 32);
+
+
     // Copy constructor and destructor
     FixedPoint(const FixedPoint& other);
     ~FixedPoint();
@@ -100,7 +103,8 @@ private:
 
     std::vector<uint32_t> subtract_vec(const std::vector<uint32_t> &a, const std::vector<uint32_t> &b) const;
 
-    std::vector<uint32_t> divide(const FixedPoint &a, const FixedPoint &b, uint32_t frac_bits) const;
+    std::pair<std::vector<uint32_t>, std::vector<uint32_t>>
+    divide(const FixedPoint &a, const FixedPoint &b) const;
 
     bool not_less_vec(const std::vector<uint32_t> &a, const std::vector<uint32_t> &b) const;
 
