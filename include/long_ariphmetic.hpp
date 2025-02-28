@@ -61,12 +61,16 @@ public:
 
     FixedPoint& operator/=(const FixedPoint &other);
 
+    FixedPoint sqrt() const;
+
     // Reduces the precision of the fractional part by removing bits and updating the fractional representation
     void set_precision(size_t precision);
 
     void print_bin() const;
 
     std::string to_string() const;
+
+    void shift_right();
 
 private:
     std::vector<uint32_t> integer;    // Binary representation of the integer part
@@ -108,7 +112,7 @@ private:
 
     bool not_less_vec(const std::vector<uint32_t> &a, const std::vector<uint32_t> &b) const;
 
-    void add_bit_div(std::vector<uint32_t> &vec, bool is_one) const;
+    void add_bit_div(std::vector<uint32_t> &vec, uint32_t bit_added, bool is_one) const;
 
     // Function to convert an integer part from decimal to binary
     std::vector<uint32_t> int_part_to_bin(const std::string& numStr) const;
