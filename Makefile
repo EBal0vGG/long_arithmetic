@@ -1,5 +1,5 @@
 CC=g++
-CFLAGS=-Wall -Wextra -pedantic -std=c++17
+CFLAGS=-Wall -Wextra -pedantic -std=c++17 -O3
 GTFLAGS=-lgtest -lgtest_main -lpthread
 PATH_TO_GTEST=/wsl.localhost/Ubuntu/usr
 
