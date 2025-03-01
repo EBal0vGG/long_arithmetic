@@ -61,16 +61,12 @@ public:
 
     FixedPoint& operator/=(const FixedPoint &other);
 
-    FixedPoint sqrt() const;
-
     // Reduces the precision of the fractional part by removing bits and updating the fractional representation
     void set_precision(size_t precision);
 
     void print_bin() const;
 
-    std::string to_string() const;
-
-    void shift_right();
+    std::string to_string(int len = -1) const;
 
 private:
     std::vector<uint32_t> integer;    // Binary representation of the integer part
@@ -115,17 +111,17 @@ private:
     void add_bit_div(std::vector<uint32_t> &vec, uint32_t bit_added, bool is_one) const;
 
     // Function to convert an integer part from decimal to binary
-    std::vector<uint32_t> int_part_to_bin(const std::string& numStr) const;
+    std::vector<uint32_t> int_part_to_bin(const std::string& num_str) const;
 
     // Function to multiply a decimal string by 2
-    std::string multiplyByTwo(const std::string& numStr) const;
+    std::string mult_by_two(const std::string &num_str) const;
 
     // Function to convert a fractional part from decimal to binary
-    std::vector<uint32_t> fracToBinary(const std::string& fracStr, int frac_bits = 32) const;
+    std::vector<uint32_t> frac_to_binary(const std::string &frac_str, int frac_bits = 32) const;
 
     // Function to convert a decimal string to binary representation
     std::pair<std::vector<uint32_t>, std::vector<uint32_t>>
-    decimalToBinary(const std::string& numStr, int frac_bits = 32) const;
+    decimal_to_binary(const std::string &num_str, int frac_bits = 32) const;
 };
 
 // User-defined literal operator for creating FixedPoint objects
