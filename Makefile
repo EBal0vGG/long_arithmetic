@@ -34,21 +34,21 @@ else
 	$(error No rule to make target '$@'. Usage: make pi [length])
 endif
 
-build/tests: build/long_ariphmetic.o build/test_long_ariphmetic.o build/pi_calculation.o build/main.o
+build/tests: build/long_arithmetic.o build/test_long_arithmetic.o build/pi_calculation.o build/main.o
 	@printf "Tests compilation is successful\n"
-	@$(CC) build/long_ariphmetic.o build/test_long_ariphmetic.o build/pi_calculation.o build/main.o -L $(PATH_TO_GTEST)/lib $(GTFLAGS) -o build/tests
+	@$(CC) build/long_arithmetic.o build/test_long_arithmetic.o build/pi_calculation.o build/main.o -L $(PATH_TO_GTEST)/lib $(GTFLAGS) -o build/tests
 	@printf "Tests linking is successful\n"
 
-build/pi: build/long_ariphmetic.o build/pi_calculation.o build/calculate_pi.o
+build/pi: build/long_arithmetic.o build/pi_calculation.o build/calculate_pi.o
 	@printf "Pi compilation is successful\n"
-	@$(CC) build/long_ariphmetic.o build/pi_calculation.o build/calculate_pi.o -o build/pi
+	@$(CC) build/long_arithmetic.o build/pi_calculation.o build/calculate_pi.o -o build/pi
 	@printf "Pi linking is successful\n"
 
-build/long_ariphmetic.o: src/long_ariphmetic.cpp
-	@$(CC) $(CFLAGS) -I $(PATH_TO_GTEST)/include -c src/long_ariphmetic.cpp -o build/long_ariphmetic.o
+build/long_arithmetic.o: src/long_arithmetic.cpp
+	@$(CC) $(CFLAGS) -I $(PATH_TO_GTEST)/include -c src/long_arithmetic.cpp -o build/long_arithmetic.o
 
-build/test_long_ariphmetic.o: src/test_long_ariphmetic.cpp
-	@$(CC) $(CFLAGS) -I $(PATH_TO_GTEST)/include -c src/test_long_ariphmetic.cpp -o build/test_long_ariphmetic.o
+build/test_long_arithmetic.o: src/test_long_arithmetic.cpp
+	@$(CC) $(CFLAGS) -I $(PATH_TO_GTEST)/include -c src/test_long_arithmetic.cpp -o build/test_long_arithmetic.o
 
 build/pi_calculation.o: src/pi_calculation.cpp
 	@$(CC) $(CFLAGS) -I $(PATH_TO_GTEST)/include -c src/pi_calculation.cpp -o build/pi_calculation.o
