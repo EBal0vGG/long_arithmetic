@@ -2,7 +2,7 @@
 #include <chrono>
 #include <vector>
 
-#include "../include/long_ariphmetic.hpp"
+#include "../include/long_arithmetic.hpp"
 #include "../include/pi_calculation.hpp"
 
 // Test class for all operation tests

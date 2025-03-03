@@ -4,7 +4,7 @@
 
 #include <chrono>
 
-#include "../include/long_ariphmetic.hpp"
+#include "../include/long_arithmetic.hpp"
 
 // Constructor: Converts a decimal string to binary representation with specified fractional bits
 FixedPoint::FixedPoint(const std::string &num_str, int frac_bits) : fractional_bits(frac_bits) {

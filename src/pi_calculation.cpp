@@ -1,4 +1,4 @@
-#include "../include/long_ariphmetic.hpp"
+#include "../include/long_arithmetic.hpp"
 #include "../include/pi_calculation.hpp"
 
 void CalcPi(FixedPoint &pi, const int k_start, const int k_finish, const FixedPoint &bs) {

@@ -2,7 +2,7 @@
 #include <string>
 #include <chrono>
 
-#include "../include/long_ariphmetic.hpp"
+#include "../include/long_arithmetic.hpp"
 #include "../include/pi_calculation.hpp"
 
 int main(int argc, char** argv) {
